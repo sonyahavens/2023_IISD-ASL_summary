@@ -1,0 +1,31 @@
+category,FY23_24,type,forecast_24_25
+software support,"7,000.00",forecast,7000
+memberships,500,forecast,500
+supplies,"30,000.00",forecast,15000
+laboratory testing,"50,000.00",forecast,2000
+licenses and permits,"25,000.00",forecast,3000
+shipping,140.29,forecast,500
+repair & maintenance,"2,000.00",forecast,2000
+training,500,forecast,650
+internal lab cost recovery,67479.94,forecast,40000
+waste disposal,"2,500.00",forecast,3500
+software support,7334.98,actual,NA
+memberships,243.78,actual,NA
+supplies,23014.2,actual,NA
+laboratory testing,3743.2,actual,NA
+licenses and permits,3098.94,actual,NA
+shipping,140.29,actual,NA
+repair & maintenance,0,actual,NA
+training,1883.76,actual,NA
+internal lab cost recovery,63580.7,actual,NA
+waste disposal,2631.07,actual,NA
+software support,7000,adjusted,NA
+memberships,256.22,adjusted,NA
+supplies,110000,adjusted,NA
+laboratory testing,19000,adjusted,NA
+licenses and permits,3000,adjusted,NA
+shipping,1000,adjusted,NA
+repair & maintenance,2000,adjusted,NA
+training,659.4,adjusted,NA
+internal lab cost recovery,67479.94,adjusted,NA
+waste disposal,3500,adjusted,NA

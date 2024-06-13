@@ -1,0 +1,475 @@
+---
+title:
+author:
+date:
+output: 
+   pdf_document:
+      latex_engine: xelatex
+      keep_tex: true
+      fig_caption: yes
+header-includes:
+  - \usepackage{booktabs}
+  - \usepackage{wrapfig}
+  - \usepackage{graphicx}
+  - \usepackage{subcaption}
+  - \usepackage[font=footnotesize]{caption}
+  - \usepackage{titling}
+  - \captionsetup[figure]{font=small}
+
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r load_packages, include = FALSE}
+library(rlang)
+library(tidyverse)
+library(janitor)
+library(here)
+library(ggridges)
+library(viridis)
+library(viridisLite)
+library(patchwork)
+library(ggrepel)
+library(lubridate)
+library(latexpdf)
+library(tinytex)
+library(broom)
+library(ggpubr)
+library(cowplot)
+library(emmeans)
+library(ggbreak)
+library(scales)
+library(ggforce)
+```
+
+```{r source_themes, include = FALSE}
+source(here("functions", "theme_SH_pubs.R"))
+```
+
+```{r load_data, include = FALSE}
+
+# Dataframe that includes all columns, but is missing records (rows)
+data <- read_csv(here("data", "2023_24FY_chemlab_data.csv")) %>% 
+  clean_names() %>% 
+  rename(sample_id = sample_number) %>% 
+  rename(parameter = param) %>% 
+  mutate(parameter = tolower(parameter)) %>%
+  mutate(test = tolower(test)) %>% 
+  rename(start_depth_m = order_details_user1) %>% 
+  rename(end_depth_m = order_details_user2) %>% 
+  mutate(collect_date = mdy(collect_date)) %>% 
+  mutate(year = year(collect_date)) %>% 
+  mutate(julian = yday(collect_date))
+
+# Creating new df that only includes needed columns
+test_data <- data %>% 
+  select("sample_id", "test", "test_price", "customer_test_price", "customer_id") %>% 
+  distinct()
+
+tests <- unique(data$test)
+
+# Dataframe that includes all records (there are missing DOC records in the data df), but does not have a "customer_id" column. Need to create new "customer_id" column from records in test_data df based on "sample_id" and "test" as primary keys. There will be records in cost_data df that do not have records in test_data df (i.e. there are missing DOC records in test_data)
+costs_data <- read_csv(here("data", "2023_24FY_invoice_df.csv")) %>% 
+  clean_names()# %>% 
+
+merged_data <- left_join(costs_data, test_data, by = c("sample_id", "test"))
+
+length(costs_data$sample_id)
+length(merged_data$sample_id)
+length(test_data$sample_id)
+
+
+chem_costs_data <- costs_data %>% 
+  filter(!test %in% c("Phytoplankton taxonomy", "Zooplankton taxonomy"))
+
+costs_tests <- unique(costs_data$test)
+
+chem_costs_tests <- unique(chem_costs_data$test)
+
+# Note: the chunks below need to be updated with new dfs; they are based on old df's.
+
+```
+
+```{r sample_counts, include=FALSE}
+
+# Total number of samples logged into Sample Master
+total_sm <- length(unique(data$sample_number))
+
+# Total number of samples analysed by the Chemistry Lab df
+total_filt <- data %>% 
+  filter(test %in% c("absorbance scan", "alk", "anions", "chla", "cations", "cond", "dic", "doc", "do", "filtration", "nh3", "no2", "no3", "part c/n", "part fe", "part p", "ph", "phycocyanin", "srsi", "tdn", "tdp", "turbidity")) %>% 
+  mutate(test = recode(test, "absorbance scan" = "absorbance scan", 
+                       "alk" = "alkalinity",
+                       "cations" = "cations", 
+                       "chla" = "chlorophyll-a",
+                       "anions" = "anions",
+                       "cond" = "conductivity",
+                       "dic" = "dissolved inorganic carbon",
+                       "doc" = "dissolved organic carbon", 
+                       "nh3" = "ammonia",
+                       "filtration" = "filtration",
+                       "no2" = "nitrite",
+                       "no3" = "nitrate",
+                       "do" = "dissolved oxygen",
+                       "part c/n" = "particulate carbon and nitrogen",
+                       "part fe" = "particulate iron", 
+                       "part p" = "particulate phosphorus", 
+                       "phycocyanin" = "phycocyanin",
+                       "srsi" = "soluble reactive silica",
+                       "tdn" = "total dissolved nitrogen", 
+                       "tdp" = "total dissolved phosphorus", 
+                       "turbidity" = "turbidity"))
+
+write_csv(total_filt, here("data", "2023_24FY_chemlab_test_df.csv"))
+
+phyto <- data %>% 
+  filter(test == "phytoplankton taxonomy")
+  
+phyto_count <- length(unique(phyto$sample_number))
+
+zoop <- data %>% 
+  filter(test == "zooplankton taxonomy")
+  
+zoop_count <- length(unique(zoop$sample_number))
+
+total_anal <- length(unique(total_filt$sample_number))
+
+total_filt_distinct <- total_filt %>% 
+  select(-"parameter", -"result", -"results_units", -"rep_limit") %>% 
+  distinct()
+  
+```
+
+```{r test_summary_plot, include = FALSE}
+
+test_summary <- as.data.frame(table(total_filt_distinct$test))
+
+# The filtration test was not showing up in the EDD Generator export because it did not have a parameter assigned to it. Assigned the parameter "Volume filtered" with "mL" units February 2024 so that this will not be an issue in subsequent years. Below the filtration frequency is manually assigned based on the invoice export, which includes "filtration". 
+test_summary$Freq[test_summary$Var1 == "filtration"] <- 1056
+
+write_csv(test_summary, here("data", "2023_chemlab_test_summary.csv"))
+
+test_summary_plot <- test_summary %>% 
+  
+  ggplot() +
+  theme_cowplot() +
+  geom_col(aes(x = Var1, y = Freq), fill = "#083266") +
+  scale_y_continuous(limits = c(0, 1200)) +
+  geom_text(aes(x= Var1, y = Freq, label = Freq), size= 2.5, vjust = -0.2) +
+  xlab("Analysis") +
+  ylab("No. of samples") +
+  theme(axis.text.x = element_text(size = 10, angle = 90, hjust = 0.95, vjust = 0.2),
+        axis.title.x = element_text(size = 12),
+        axis.text.y = element_text(size = 10),
+        axis.title.y = element_text(size = 12))
+
+write_csv(test_summary, here("data", "2023_24FY_chemlab_test_summary.csv"))
+
+save_plot(here("rmarkdown", "test_summary_plot.pdf"), test_summary_plot)
+
+save_plot(here("figures", "2023_24FY_chemlab_test_summary.pdf"), test_summary_plot)
+
+```
+
+```{r costs, echo=FALSE}
+
+# These cost calcs are based on the calender year, because our customers need the invoice at least 30 days prior to fiscal year end, but we sample in March, which makes this impossible. 
+
+total_external_costs <- chem_costs_data %>% 
+  filter(!customer_id %in% c("Blanks", 
+                             "Broadscale monitoring", 
+                             "Diversion",
+                             "FAACTS",
+                             "LTER",
+                             "Proficiency testing",
+                             "SHRRIMP")) %>% 
+  mutate(customer_id = recode(customer_id, "FORMBloom" = "REMEdiate"))
+
+
+total_external_costs_count<- round(sum(total_external_costs$price, na.rm = TRUE), digits = 2) %>% 
+  format(scientific = FALSE, nsmall = 2, big.mark = ",")
+
+customers <- (unique(costs_data$customer_id))
+
+external_customers <- (unique(total_external_costs$customer_id))
+
+total_chem_costs_count <- sum(chem_costs_data$price, na.rm = TRUE)
+
+project_costs <- chem_costs_data %>% 
+  group_by(customer_id) %>% 
+  summarise(total = sum(price, na.rm = TRUE))
+
+external_project_costs <- total_external_costs %>%
+  group_by(customer_id) %>% 
+  summarise(total = sum(price, na.rm = TRUE))
+```
+
+```{r costs_summary_plot, include=FALSE}
+costs_summary_plot <- project_costs %>% 
+
+  ggplot() +
+  geom_col(aes(x = customer_id, y = total), fill = "#083266") +
+  geom_text(aes(x= customer_id, y = total, label = round(total, digits = 0)), size= 3, vjust = -0.2) +
+  xlab("Project") +
+  scale_y_continuous(limits = c(0, 80000), labels = comma) +
+  ylab("Total cost ($)") +
+  theme_cowplot() +
+  theme(axis.text.x = element_text(size = 10, angle = 90, hjust = 0.95, vjust = 0.2),
+        axis.title.x = element_text(size = 12),
+        axis.text.y = element_text(size = 10),
+        axis.title.y = element_text(size = 12)) 
+
+```
+
+```{r write_costs_summary, include=FALSE}
+
+write_csv(project_costs, here("data", "2023_24FY_chemlab_costs_summary.csv"))
+
+save_plot(here("rmarkdown", "2023_24FY_costs_summary_plot.pdf"), costs_summary_plot, base_height = 6)
+
+save_plot(here("figures", "2023_24FY_chemlab_cost_summary.pdf"), costs_summary_plot, base_height = 6)
+
+```
+
+```{r budget, include=FALSE, warning=FALSE}
+
+options(scipen = 999)
+
+budget <- read_csv(here("data", "2023_24FY_budget.csv")) %>% 
+  clean_names()
+
+capital_assets <-read_csv(here("data", "2022_23_24FY_capitalassets.csv")) %>% 
+  clean_names() 
+
+FY23_24_budget <- budget %>% 
+
+  ggplot(aes(x = category, y = fy23_24, fill = type)) +
+  geom_col(position = "dodge", stat = "identity") +
+  theme_cowplot() +
+  scale_fill_manual(values = c("#5abc89", "#29c3ec", "#083266")) +
+  scale_y_continuous(breaks = c(10000, 25000, 50000, 75000, 100000, 110000)) +
+  xlab("Category") +
+  ylab("Amount") +
+  theme(
+    axis.text.x = element_text(size = 10, angle = 90, hjust = 0.95, vjust = 0.2),
+    axis.title.y = element_text(hjust = 0.9),
+    axis.text.y = element_text(size=10),
+    axis.text.y.right = element_blank(),
+    axis.line.y.right = element_blank(),
+    axis.ticks.y.right = element_blank()) 
+ 
+save_plot(here("figures", "2023_24FY_budget.pdf"), FY23_24_budget)
+
+FY24_25_budget <- budget %>% 
+  filter(forecast_24_25 != 'is.na') %>% 
+  
+  ggplot() +
+  geom_col(aes(x = category, y = forecast_24_25), fill = "#083266") +
+  scale_y_break(breaks = c(20000, 35000), scales = 0.2) +
+  scale_y_continuous(breaks = c(5000, 10000, 15000, 20000, 35000, 40000),  labels = comma) +
+  xlab("Category") +
+  ylab("Amount") +
+  theme_cowplot() +
+  theme(
+    axis.text.x = element_text(size = 10, angle = 90, hjust = 0.95, vjust = 0.2),
+    axis.title.y = element_text(hjust = 0.9),
+    axis.text.y = element_text(size=10),
+    axis.text.y.right = element_blank(),
+    axis.line.y.right = element_blank(),
+    axis.ticks.y.right = element_blank()) 
+
+save_plot(here("figures", "2024_25FY_budget.pdf"), FY24_25_budget)
+
+
+FY22_23_capitalassets <- capital_assets %>% 
+  filter(fy == '2022_23') %>% 
+  
+  ggplot(aes(x = capital_asset, y = value, fill = type)) +
+  geom_col(position = "dodge", stat = "identity") +
+  theme_cowplot() +
+  scale_fill_manual(values = c("#5abc89", "#083266")) +
+  xlab("Capital asset") +
+  ylab("Amount") +
+  theme(
+    axis.text.x = element_text(size = 10, angle = 90, hjust = 0.95, vjust = 0.2),
+    axis.title.y = element_text(hjust = 0.9),
+    axis.text.y = element_text(size=10),
+    axis.text.y.right = element_blank(),
+    axis.line.y.right = element_blank(),
+    axis.ticks.y.right = element_blank()) 
+
+FY2023_24_total_capital_assets <- capital_assets %>% 
+  filter(fy == '2022_23') %>%
+  summarise(total = sum(value, na.rm = TRUE))
+
+save_plot(here("figures", "2022_23FY_capital_assets.pdf"), FY22_23_capitalassets)
+
+FY23_24_capitalassets <- capital_assets %>% 
+  filter(fy == '2023_24') %>% 
+  
+  ggplot() +
+  geom_col(aes(x = capital_asset, y = value), fill = "#083266") +
+  theme_cowplot() +
+  xlab("Capital asset") +
+  ylab("Amount") +
+  theme(
+    axis.text.x = element_text(size = 10, angle = 90, hjust = 0.95, vjust = 0.2),
+    axis.title.y = element_text(hjust = 0.9),
+    axis.text.y = element_text(size=10),
+    axis.text.y.right = element_blank(),
+    axis.line.y.right = element_blank(),
+    axis.ticks.y.right = element_blank()) 
+
+save_plot(here("figures", "2023_24FY_capital_assets.pdf"), FY23_24_capitalassets)
+
+```
+
+# 2023-2024 Fiscal Year IISD-ELA Analytical Service Lab Summary
+Sonya Havens\
+`r Sys.Date()`
+
+## Students
+
+* *Jenny Thoroski* - returning for third year in the Analytical Service Lab. Worked May to November 24, 2023 in Pod 3 analysing pH on the pH meter, conductivity, gran alkalinity, and turbidity on the MT-100, and absorbance scans, soluble reactive silica and particulate phosphorus on the UV-1800 spectrophotometer. Jenny also conducted an instrument cross comparison study, wherein samples were analysed on the old Accumet pH meter and the new Orion Star pH meter. 
+
+* *Emily Loewen* - New student. Worked from May to the end of August, 2023 in Pod 1 Monday through Wednesday conducting sample preparation and filtration, then helped with Pod 3 every Thursday and Friday analysing particulate phosphorus on the UV-1800 spectrophotometer and chlorophyll-a on the Trilogy fluorometer. 
+
+* *Collette Leclerc* - New student. Worked from September to November 24, 2023 in Pod 1 Monday through Wednesday conducting sample preparation and filtration, then helped with Pod 3 every Thursday and Friday analysing particulate phosphorus on the UV-1800 spectrophotometer and chlorophyll-a on the Trilogy fluorometer.
+
+## Instrument installation/implementation
+
+\underline{Orion Star A211 pH meter}
+
+The Thermofisher Scientific Orion Star A211 pH meter was purchased April, 2023. Samples were analysed on both the old Fisher Accumet pH meter and the new Orion pH meter from May to August, 2023. The comparison report will be completed by May 2024.
+
+\underline{Shimadzu HIC-ESP}
+
+The Shimadzu HIC-ESP, which was purchased in December 2022 and installed in April 2023, is used for the anlaysis of anaions chloride and sulfate. Samples collected in 2022 were analysed on the Shimadzu HIC-ESP and were compared to results from the analysis of these samples at the University of Alberta Biogeochemical Analytical Service Laboratory (UA-BASL) on a Dionex Ion Chromatograph. The comparison report (2023_ShimadzuIC_comparison) is complete and can be found in the IISD-ELA github and all of the 2023 anions samples have been analysed. 
+
+\underline{Agilent Microwave Plasma Atomic Emission Spectrometer}
+
+The Agilent Microwave Plasma Atomic Emission Spectrometer (MPAES), which was purchased in December 2022 and installed July 2023, is used to measure cations (Ca, Fe, K, Mg, Mn, Mo, Na, and Zn) and particulate iron. 
+
+Particulate iron samples collected from 2019 to 2022 were analysed on the MPAES and compared with results from the analysis of these samples measured at the University of Winnipeg on a PerkinElmer AAnalyst 400 Atomic Absorption Spectrophotometer. The comparison report (2023_PartFe_UW_MPAES_comparison) is complete and can be found on the IISD-ELA github. 
+
+Cation samples collected in 2022 were analysed on the MPAES and compared with results from the analysis of these samples measured at the UA-BASL using a Thermo ICAP-6300 Inductively Coupled Plasma Optical Emission Spectroscopy. The comparison report will be complete by May 2024. Cation samples collected in 2023 will be measured on the MPAES following experiments to determine if an internal standard and/or acid addition is required to enhance the accuracy and precision of cation measurements. 
+
+\pagebreak
+
+\underline{Elementar enviroTOC}
+
+The Elementar enviroTOC, which was purchased in December 2022 and installed October 2023, is used to measure dissolved organic carbon. Dissolved organic carbon samples collected in 2022 will be analysed on the enviroTOC and compared with results from the analysis of these samples measured at the Fisheries and Oceans Canada Fresh Water Institute using a Shimadzu TOC-VCPH by May 2024. Dissolved organic carbon samples collected in 2023 will be measured as soon as the cross comparison is complete. 
+
+
+\underline{Elementar UNICUBE}
+
+The Elementar UNICUBE, which was purchased in December 2022 and installed October 2023, is used to measure particulate carbon and nitrogen. Particulate carbon and nitrogen samples were collected in duplicate in 2023 with one set sent to the UA-BASL for analysis using the Exeter CE 440 Elemental Analyzer and one set retained for analysis on the UNICUBE. The UNICUBE is currently being optimized to improve accuracy and precision at low concentrations and achieve the lowest limit of detection possible. Particulate carbon and nitrogen samples collected in 2023 will be analysed on the UNICUBE following optimization and cross comparison. 
+
+## Samples processed by the IISD Analytical Service Lab 
+
+The total number of samples processed by the IISD-ELA Analytical Service Lab (IISD-ASL) in the 2023-2024 fiscal year was `r total_anal`. The following plot displays how many samples were analysed for each test in the 2023-2024 fiscal year.
+
+\begin{figure}[h]
+  \includegraphics[width=0.85\textwidth]{test_summary_plot.pdf}
+  \caption{Number of samples processed for each analysis}
+\end{figure}
+
+## Proficiency testing
+
+We received a proficiency testing score of "Good". The nitrite + nitrate results from several Rain & Soft Waters (RN) samples were biased high and the dissolved inorganic carbon (DIC) results of several Major Ions in Natural Waters (MI) samples were also biased high. 
+\pagebreak
+
+The high bias in the nitrite + nitrate RN samples (and one low bias result) is concerning. While all of the high biased samples required dilution to fall within the analytical calibration range, dilutions are a common practice for this analysis and the nitrite + nitrate concentrations in these samples are representative of typical IISD-ASL samples. We will need to investigate the cause of this lack of accuracy and precision in nitrite and nitrate concentrations. 
+
+With the exception of one alkalinity sample that was biased low, all of the other analytical results of RN samples were within acceptable limits. 
+
+\begin{figure}[h]
+\centering
+  \includegraphics[width=0.8\textwidth]{2023_PT_RN_zscores.png}
+  \caption{Z scores for results of rain and soft waters proficiency testing samples}
+\end{figure}
+
+The DIC concentrations in the MI samples were substantially higher than samples collected at the IISD-ELA and thus are not representative of the appropriate DIC concentration range pertinent for use in the IISD-ASL. Regardless, the high bias in DIC concentrations of MI samples was due to the necessity of a very low sample injection volume (0.03-0.05 mL compared to the typical sample injection volume of 0.25 mL), which induces a loss of accuracy and precision.
+
+\begin{figure}[h]
+\centering
+  \includegraphics[width=0.8\textwidth]{2023_PT_MI_zscores.png}
+  \caption{Z scores for results of major ions and nutrients proficiency testing samples}
+\end{figure}
+\pagebreak
+
+In addition to the DIC bias described above, one nitrite + nitrate result and one silicate result were biased low in MI samples. All of the other analytical results of MI samples were within acceptable limits. 
+
+All of the total phosphorus results of the proficiency samples were within acceptable limits. 
+
+\begin{figure}[h]
+\centering
+  \includegraphics[width=0.99\textwidth]{2023_PT_TP_zscores.png}
+  \caption{Z scores for results of total phosphorus proficiency testing samples}
+\end{figure}
+
+Two out of ten proficiency testing samples had low biased turbidity results. These two turbidity results were substantially higher than turbidity concentrations in samples collected at the IISD-ELA and thus are not representative of the appropriate turbidity concentration range pertinent for use in the IISD-ASL.
+
+\begin{figure}[h]
+\centering
+  \includegraphics[width=0.99\textwidth]{2023_PT_TU_zscores.png}
+  \caption{Z scores for results of turbidity proficiency testing samples}
+\end{figure}
+\pagebreak
+
+## Budget
+
+The following plot provides the category breakdown of the 2023-24 fiscal year (FY) budget forecast and actual expenditures as of `r Sys.Date()`. We are awaiting the invoice for our laboratory testing expenditures. The \$25,000 forecast value for the licenses and permits was likely a decimal place error, as these costs are closer to \$2,500. 
+
+\begin{figure}[h]
+\centering
+  \includegraphics[width=0.99\textwidth]{2023_24FY_budget.pdf}
+  \caption{2023-24 fiscal year budget. The internal lab cost recovery represents receivable funds. All other categories are expenditures.}
+\end{figure}
+
+The 2023-24 FY budget was adjusted for the September 1, 2023 to March 31, 2024 quarter to procure non-perishable consumables and capital assets in the 2023-24 FY to reduce costs in the 2024-25, 2025-26, and 2026-27 FY's to accommodate increased costs in these FY's associated with the build of the Centre for Lake Learning and Climate Change. Figure 6 provides the category breakdown of the 2023-24 FY budget that accounts for these adjustments. We were able to bring down laboratory testing costs down to ~\$19,000 from ~\$50,000 by analysing samples from 2022 for the anions, cations, and dissolved organic carbon method cross comparison experiments. The supply budget increased from \$30,000 to \$110,000 in order to procure three years worth of non-perishable supplies in the 2023-24 FY to reduce costs in the 2024-25, 2025-26, and 2026-27 FY's. 
+
+\pagebreak
+
+The following plot provides the category breakdown of the 2024-25 FY budget forecast. The software support forecast will need to be adjusted to \$11,350 in the 2024-25 FY. I have disputed the software support costs for our Laboratory Information Management System (Sample Master®) for several years now to bring the costs down to what I considered justifiable. The software support cost are supposed to be calculated as 18% of the software costs at purchase. However, this was based on software costs before discounts, and they considered only having five licenses, as opposed to unlimited licenses, a discount (\$17,138.10), which I disputed as inappropriate. I had also argued to have our beta testing discount included in the software support cost calculation as I found it inappropriate to have to pay to communicate with support to assist them with improving their software. The beta testing portion has ended, so this adjustment to the software support cost is no longer available and I have been informed by the Accounts Manager that starting in 2024 they will no longer be acquiescing to my arguments and the support costs will increase to approximately \$11,350.
+
+The internal lab cost recovery is likely an underestimate as additional project analysis requests are often received in April. 
+
+\begin{figure}[h]
+\centering
+  \includegraphics[width=0.99\textwidth]{FY2024_25_budget_snip.png}
+  \caption{2024-25 fiscal year budget. The internal lab cost recovery represents receivable funds. All other categories are expenditures.}
+\end{figure}
+\pagebreak
+
+## Capital asset investments
+
+The following plot provides the breakdown of the capital assets budget forecast and actual expenditures in the 2022-23 FY. The total investments in capital assets in 2023-2024 fiscal year was `r FY2023_24_total_capital_assets`. All of the 2022-23 FY capital assets have been purchased and installed. The actual costs of the Autoclave and Centrifuge were slightly higher than forecasted. All other purchases were within the forecasted budget. There were no investments in capital assets for the IISD-ASL in the 2023-2024 fiscal year. 
+
+\begin{figure}[h]
+\centering
+  \includegraphics[width=0.99\textwidth]{2022_23FY_capital_assets.pdf}
+  \caption{2022-23 capital assets expenditures}
+\end{figure}
+
+
+The following capital assets may be purchased in the final quarter pending approval. If not purchased this fiscal, they will be procured in the 2024-25 or 2025-2026 FY's. 
+
+\begin{figure}[h]
+\centering
+  \includegraphics[width=0.6\textwidth]{2023_24FY_capital_assets.pdf}
+  \caption{2023-24 capital asset expenditures}
+\end{figure}
+\pagebreak
+
+## Cost recovery
+
+The following plot breaks down the analytical costs by project. The Blanks, Broadscale monitoring, Diversion, FAACTS, LTER, Proficiency testing, and SHRRIMP project costs are covered by core funding. The 2023 total cost recovery for the externally funded projects was $`r total_external_costs_count`.
+
+\begin{figure}[h]
+\centering
+  \includegraphics[width=0.99\textwidth]{costs_summary_plot.pdf}
+  \caption{Analytical costs for each project}
+\end{figure}

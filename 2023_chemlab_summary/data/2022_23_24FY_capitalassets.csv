@@ -1,0 +1,25 @@
+capital_asset,value,type,FY
+pH probe,2500,forecasted,2022_23
+HIC-ESP,"75,000.00",forecasted,2022_23
+MPAS,75000,forecasted,2022_23
+Organic carbon analyzer,52000,forecasted,2022_23
+Elemental analyzer,82000,forecasted,2022_23
+Centrifuge,24000,forecasted,2022_23
+AA3 pump,18000,forecasted,2022_23
+Autoclave,9000,forecasted,2022_23
+CO2 gas analyzer,7000,forecasted,2023_24
+MPAES MSIS,5000,forecasted,2023_24
+AA3 pump,18000,forecasted,2023_24
+high precision balance,12000,forecasted,2023_24
+pH probe,"2,596.38",actual,2022_23
+HIC-ESP,73062.07,actual,2022_23
+MPAS,"72,271.20",actual,2022_23
+Organic carbon analyzer,46095.57,actual,2022_23
+Elemental analyzer,"82,939.10",actual,2022_23
+Centrifuge,"28,175.45",actual,2022_23
+AA3 pump,18127.13,actual,2022_23
+Autoclave,10727.36,actual,2022_23
+CO2 gas analyzer,NA,actual,2024_25
+MPAES MSIS,NA,actual,2024_25
+AA3 pump,NA,actual,2024_25
+high precision balance,NA,actual,2024_25

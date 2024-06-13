@@ -1,0 +1,147 @@
+Var1,Freq
+13c,168
+a254,478
+air temperature,24
+alk,900
+archive,1013
+black ice,24
+ca,876
+chla,930
+cl,779
+cloud cover,24
+cond,128
+dic,980
+doc,225
+e2:e3,478
+e2:e4,478
+fe,876
+integrated epi to 1% surface par?,24
+k,876
+lipid content,28
+mg,876
+mn,876
+mo,876
+mysis,173
+na,876
+nh3-n,981
+no2-n,977
+no3-n,977
+o2,18
+par - 0.5m,21
+par - 10m,13
+par - 11m,9
+par - 12m,4
+par - 13m,4
+par - 14m,4
+par - 15m,4
+par - 16m,4
+par - 17m,2
+par - 18m,2
+par - 1m,21
+par - 2m,21
+par - 3m,21
+par - 4m,19
+par - 5m,19
+par - 6m,17
+par - 7m,15
+par - 8m,15
+par - 9m,13
+par - air 1,21
+par - air 2,21
+part c,1115
+part fe,181
+part n,1115
+part p,1126
+ph,747
+phycocyanin,134
+profile?,24
+rbr#,24
+s275-295,478
+s350-400,478
+samplers,24
+secchi depth,24
+slush,24
+snow depth,24
+so4,779
+sr,478
+srsi,942
+suva,478
+tdn,1039
+tdp,1050
+tds,51
+temp - 0.25m,1
+temp - 0.5m,1
+temp - 0.75m,1
+temp - 0m,1
+temp - 1.25m,1
+temp - 1.5m,1
+temp - 1.75m,1
+temp - 10.25m,1
+temp - 10.5m,1
+temp - 10.75m,1
+temp - 10m,1
+temp - 11.25m,1
+temp - 11.5m,1
+temp - 11.75m,1
+temp - 11m,1
+temp - 12.25m,1
+temp - 12.5m,1
+temp - 12.75m,1
+temp - 12m,1
+temp - 13.25m,1
+temp - 13.5m,1
+temp - 13.75m,1
+temp - 13m,1
+temp - 14.25m,1
+temp - 14.5m,1
+temp - 14.75m,1
+temp - 14m,1
+temp - 15.25m,1
+temp - 15.5m,1
+temp - 15m,1
+temp - 1m,1
+temp - 2.25m,1
+temp - 2.5m,1
+temp - 2.75m,1
+temp - 2m,1
+temp - 3.25m,1
+temp - 3.5m,1
+temp - 3.75m,1
+temp - 3m,1
+temp - 4.25m,1
+temp - 4.5m,1
+temp - 4.75m,1
+temp - 4m,1
+temp - 5.25m,1
+temp - 5.5m,1
+temp - 5.75m,1
+temp - 5m,1
+temp - 6.25m,1
+temp - 6.5m,1
+temp - 6.75m,1
+temp - 6m,1
+temp - 7.25m,1
+temp - 7.5m,1
+temp - 7.75m,1
+temp - 7m,1
+temp - 8.25m,1
+temp - 8.5m,1
+temp - 8.75m,1
+temp - 8m,1
+temp - 9m,1
+temp download time,24
+thermal epi depth,24
+thermocline depth,24
+tn,20
+total biomass,757
+total ice,24
+tp,10
+tss,55
+turbidity,231
+water colour,24
+wave height (lower),24
+wave height (upper),24
+white ice layer,24
+wind direction,24
+wind speed (lower),24
+wind speed (upper),24
